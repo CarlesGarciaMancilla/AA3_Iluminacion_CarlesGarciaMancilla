@@ -41,7 +41,19 @@ struct Camera
 	float fNear = 0.1f;
 	float fFar = 10.f;
 	float aspectRatio;
+	float pitch = 0;
+	float yaw = 0;
+	glm::vec3 cameraFront = glm::vec3(0.f, 0.f, -1.f);
 };
+Camera camara;
+
+struct Star
+{
+	glm::vec3 position = glm::vec3(0.0f, 20.0f, 10.0f);
+
+};
+Star sun;
+Star moon;
 
 struct ShaderProgram {
 	GLuint vertexShader = 0;
@@ -57,6 +69,12 @@ bool generalPlane = false;
 bool detailPlane = false;
 bool dollyZoom = false;
 bool first = true;
+bool linterna = true;
+bool sunLight = true;
+bool moonLight = false;
+float lastX = 400.0f;
+float lastY = 300.0f;
+bool firstMouse = true;
 
 void Resize_Window(GLFWwindow* window, int iFrameBufferWidth, int iFrameBufferHeight) {
 
@@ -87,10 +105,38 @@ void keyEvents(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 
 
-	
+}
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+	if (firstMouse) {
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
 
+	float xoffset = xpos - lastX;
+	float yoffset = lastY - ypos;
 
+	lastX = xpos;
+	lastY = ypos;
+
+	float sensitivity = 0.1f;
+	xoffset *= sensitivity;
+	yoffset *= sensitivity;
+
+	camara.yaw += xoffset;
+	camara.pitch += yoffset;
+
+	if (camara.pitch > 89.0f)
+		camara.pitch = 89.0f;
+	if (camara.pitch < -89.0f)
+		camara.pitch = -89.0f;
+
+	glm::vec3 direction;
+	direction.x = cos(glm::radians(camara.yaw)) * cos(glm::radians(camara.pitch));
+	direction.y = sin(glm::radians(camara.pitch));
+	direction.z = sin(glm::radians(camara.yaw)) * cos(glm::radians(camara.pitch));
+	camara.direction = camara.position + glm::normalize(direction);
 }
 
 
@@ -453,6 +499,8 @@ void main() {
 	//Indicamos lado del culling
 	glEnable(GL_DEPTH_TEST);
 
+	
+
 	//Leer textura
 	int width, height, nrChannels;
 	unsigned char* textureInfo = stbi_load("Assets/Textures/troll.png", &width, &height, &nrChannels, 0);
@@ -462,7 +510,7 @@ void main() {
 	if (glewInit() == GLEW_OK) {
 
 		
-		Camera camara;
+		
 
 		//Compilar shaders
 		ShaderProgram myFirstProgram;
@@ -666,27 +714,46 @@ void main() {
 		//Generamos el game loop
 		while (!glfwWindowShouldClose(window)) {
 
+			sun.position.z -= 0.01f;
 			//Pulleamos los eventos (botones, teclas, mouse...)
 			glfwPollEvents();
 			glfwSetKeyCallback(window, keyEvents);
+			glfwMakeContextCurrent(window);
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+			glfwSetCursorPosCallback(window, mouse_callback);
 
-			
+			if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+			{
+				if (linterna) 
+				{
+					linterna = false;
+					
+				}
+				else 
+				{
+					linterna = true;
+				}
+			}
 
 			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) 
 			{
-				camara.position.z -= 0.01f;
+				camara.position.z -= 0.05f;
+				camara.direction.z -= 0.05f;
 			}
 			if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
 			{
-				camara.position.z += 0.01f;
+				camara.position.z += 0.05f;
+				camara.direction.z += 0.05f;
 			}
 			if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 			{
-				camara.position.x -= 0.01f;
+				camara.position.x += 0.05f;
+				camara.direction.x += 0.05f;
 			}
 			if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
 			{
-				camara.position.x += 0.01f;
+				camara.position.x -= 0.05f;
+				camara.direction.x -= 0.05f;
 			}
 			
 			// if (detailPlane) 
@@ -769,6 +836,13 @@ void main() {
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "view"), 1, GL_FALSE, glm::value_ptr(view));
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+			glUniform1i(glGetUniformLocation(compiledPrograms[0], "linterna"), linterna);
+			glUniform1i(glGetUniformLocation(compiledPrograms[0], "sun"), sunLight);
+			glUniform1i(glGetUniformLocation(compiledPrograms[0], "moon"), moonLight);
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "sunLight"), 1, glm::value_ptr(sun.position));
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLight"), 1, glm::value_ptr(camara.position));
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "moonLight"), 1, glm::value_ptr(moon.position));
+
 			models[0].Render();
 
 
@@ -844,7 +918,7 @@ void main() {
 			glUniform1i(glGetUniformLocation(compiledPrograms[0], "textureSampler"), 1);
 
 			//Definir la matriz de traslacion, rotacion y escalado
-			glm::mat4 translationMatrix2 = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
+			glm::mat4 translationMatrix2 = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 1.f));
 			glm::mat4 rotationMatrix2 = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.f, 0.f, 1.f));
 			glm::mat4 scaleMatrix2 = glm::scale(glm::mat4(1.f), glm::vec3(0.5f));
 
@@ -865,57 +939,6 @@ void main() {
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 			models[1].Render();
-
-
-			//// <<<<<<<<<<<<<<<<<<<<<<<<<<     NUBE   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-			glUseProgram(compiledPrograms[2]);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, textureID2);
-			glUniform1i(glGetUniformLocation(compiledPrograms[0], "textureSampler"), 1);
-
-			//Definir la matriz de traslacion, rotacion y escalado
-			 translationMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -5.f));
-			 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.f, 0.f, 1.f));
-			scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(1.f,2.f,0.5f));
-
-			view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
-
-			// Definir la matriz proyeccion
-			projection = glm::perspective(glm::radians(camara.fFov), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, camara.fNear, camara.fFar);
-			//Asignar valores iniciales al programa
-			glUniform2f(glGetUniformLocation(compiledPrograms[2], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
-
-			// Pasar las matrices
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "translationMatrix"), 1, GL_FALSE, glm::value_ptr(translationMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "rotationMatrix"), 1, GL_FALSE, glm::value_ptr(rotationMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "view"), 1, GL_FALSE, glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-			models[1].Render();
-
-			////////////////////////////////////////////  CUBO  ////////////////////////////////////////////			
-			glUseProgram(compiledPrograms[1]);
-
-			// Definir matrices de transformación
-			glm::mat4 model = glm::mat4(1.0f);
-			model = glm::translate(model, glm::vec3(0.0f, 1.5f, 3.0f));
-			model = glm::scale(model, glm::vec3(10.f,1.f,10.f));
-
-			view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
-
-			// Definir la matriz proyeccion
-			projection = glm::perspective(glm::radians(camara.fFov), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, camara.fNear, camara.fFar);
-
-			// Pasar matrices a los shaders
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "model"), 1, GL_FALSE, glm::value_ptr(model));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "view"), 1, GL_FALSE, glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-			// Dibujar el cubo
-			glBindVertexArray(vaoCubo);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-			glBindVertexArray(0);
 
 			//Cambiamos buffers
 			glFlush();
