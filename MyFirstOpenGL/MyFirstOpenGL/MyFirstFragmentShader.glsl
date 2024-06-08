@@ -32,19 +32,18 @@ void main() {
         vec3 lightDirection = normalize(sunLight - primitivePosition.xyz);
         float sourceLightAngle = dot(normalsFragmentShader, lightDirection);
 
-        fragColor = vec4(baseColor.rgb * sourceLightAngle,2.0) * (sunColor);
+        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (sunColor);
+
+        
         }
-         else if(moon == true)
+        if(moon == true)
         {
         vec3 lightDirection = normalize(moonLight - primitivePosition.xyz);
         float sourceLightAngle = dot(normalsFragmentShader, lightDirection);
 
-        fragColor = vec4(baseColor.rgb * sourceLightAngle,2.0) * (moonColor);
+        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (moonColor);
         }
-        else
-        {
-        fragColor = baseColor * ambientColor *0.25;
-        }
+      
 
         if(linterna == true)
         {

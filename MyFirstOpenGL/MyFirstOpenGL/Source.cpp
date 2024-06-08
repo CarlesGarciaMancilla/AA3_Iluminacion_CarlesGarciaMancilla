@@ -49,11 +49,14 @@ Camera camara;
 
 struct Star
 {
-	glm::vec3 position = glm::vec3(0.0f, 20.0f, 10.0f);
+	glm::vec3 position;
+	float fAngularVelocity = 0.0000000005f;
 
+	float angle = 0.5f;
 };
 Star sun;
 Star moon;
+
 
 struct ShaderProgram {
 	GLuint vertexShader = 0;
@@ -72,6 +75,7 @@ bool first = true;
 bool linterna = true;
 bool sunLight = true;
 bool moonLight = false;
+bool noche = false;
 float lastX = 400.0f;
 float lastY = 300.0f;
 bool firstMouse = true;
@@ -137,7 +141,67 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	direction.y = sin(glm::radians(camara.pitch));
 	direction.z = sin(glm::radians(camara.yaw)) * cos(glm::radians(camara.pitch));
 	camara.direction = camara.position + glm::normalize(direction);
+
+
 }
+
+void UpdateSunRotation(float deltaTime) {
+	// Define el punto alrededor del cual rotará el Sol (por ejemplo, el centro del sistema de coordenadas)
+	glm::vec3 rotationCenter = glm::vec3(0.f, 1.f, -1.f);
+
+	// Define el eje y el ángulo de rotación
+	glm::vec3 rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f); // Rotación alrededor del eje Y
+	float rotationAngle = sun.angle + sun.fAngularVelocity * deltaTime; // Calcula el nuevo ángulo
+
+	// Paso 1: Traslada el Sol al origen del sistema de coordenadas
+	glm::mat4 translateToOrigin = GenerateTranslationMatrix(-rotationCenter);
+
+	// Paso 2: Aplica la rotación
+	glm::mat4 rotation = GenerateRotationMatrix(rotationAxis, rotationAngle);
+
+	// Paso 3: Devuelve el Sol a su posición original
+	glm::mat4 translateBack = GenerateTranslationMatrix(rotationCenter);
+
+	// Combina las transformaciones
+	glm::mat4 transform = translateBack * rotation * translateToOrigin;
+
+	// Aplica la transformación a la posición del Sol
+	sun.position = glm::vec3(transform * glm::vec4(sun.position, 1.0f));
+
+
+	// Actualiza el ángulo del Sol
+	sun.angle = rotationAngle;
+}
+
+void UpdateMoonRotation(float deltaTime) {
+	// Define el punto alrededor del cual rotará el Sol (por ejemplo, el centro del sistema de coordenadas)
+	glm::vec3 rotationCenter = glm::vec3(0.f, 1.f, -1.f);
+
+	// Define el eje y el ángulo de rotación
+	glm::vec3 rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f); // Rotación alrededor del eje Y
+	float rotationAngle = moon.angle + moon.fAngularVelocity * deltaTime; // Calcula el nuevo ángulo
+
+	// Paso 1: Traslada el Sol al origen del sistema de coordenadas
+	glm::mat4 translateToOrigin = GenerateTranslationMatrix(-rotationCenter);
+
+	// Paso 2: Aplica la rotación
+	glm::mat4 rotation = GenerateRotationMatrix(rotationAxis, rotationAngle);
+
+	// Paso 3: Devuelve el Sol a su posición original
+	glm::mat4 translateBack = GenerateTranslationMatrix(rotationCenter);
+
+	// Combina las transformaciones
+	glm::mat4 transform = translateBack * rotation * translateToOrigin;
+
+	// Aplica la transformación a la posición del Sol
+	moon.position = glm::vec3(transform * glm::vec4(moon.position, 1.0f));
+
+
+	// Actualiza el ángulo del Sol
+	moon.angle = rotationAngle;
+}
+
+
 
 
 //Funcion que leera un .obj y devolvera un modelo para poder ser renderizado
@@ -710,17 +774,45 @@ void main() {
 
 		//Compìlar programa
 		compiledPrograms.push_back(CreateProgram(ColorProgram));
-
+		float lastFrameTime = glfwGetTime();
+		sun.position = glm::vec3(0.0f, 0.0f, 10.0f);
+		moon.position = glm::vec3(0.0f, 0.0f, -10.0f);
 		//Generamos el game loop
 		while (!glfwWindowShouldClose(window)) {
 
-			sun.position.z -= 0.01f;
+			
 			//Pulleamos los eventos (botones, teclas, mouse...)
 			glfwPollEvents();
 			glfwSetKeyCallback(window, keyEvents);
 			glfwMakeContextCurrent(window);
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 			glfwSetCursorPosCallback(window, mouse_callback);
+
+			float currentFrameTime = glfwGetTime();
+			float deltaTime = currentFrameTime - lastFrameTime;
+			UpdateSunRotation(deltaTime);
+
+			if (sun.position.y < -5.0f) 
+			{
+				sunLight = false;
+				noche = true;
+			}
+			else if (sun.position.y > -5.0f) 
+			{
+				sunLight = true;
+			}
+
+				UpdateMoonRotation(deltaTime);
+
+			if (moon.position.y < -5.0f)
+			{
+				moonLight = false;
+				
+			}
+			else if (moon.position.y > -5.0f)
+			{
+				moonLight = true;
+			}
 
 			if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
 			{
