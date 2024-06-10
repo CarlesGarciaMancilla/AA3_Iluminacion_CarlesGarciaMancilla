@@ -57,6 +57,14 @@ struct Star
 Star sun;
 Star moon;
 
+struct SpawnPoint
+{
+	glm::vec3 position;
+	glm::vec3 rotation;
+	float angle;
+
+};
+
 
 struct ShaderProgram {
 	GLuint vertexShader = 0;
@@ -66,7 +74,9 @@ struct ShaderProgram {
 
 std::vector<GLuint> compiledPrograms;
 std::vector<Model> models;
-GameObject cube;
+std::vector<SpawnPoint> spawnPoints;
+std::vector<SpawnPoint> modelPoints;
+
 bool isometric = true;
 bool generalPlane = false;
 bool detailPlane = false;
@@ -201,7 +211,18 @@ void UpdateMoonRotation(float deltaTime) {
 	moon.angle = rotationAngle;
 }
 
+SpawnPoint RandomSpawnpoint(std::vector<SpawnPoint> spawnPoints)
+{
+	
 
+	// Generate a random index within the bounds of the vector
+	int randomIndex = std::rand() % spawnPoints.size();
+
+	// Return the spawn point at the random index
+	return spawnPoints[randomIndex];
+
+
+}
 
 
 //Funcion que leera un .obj y devolvera un modelo para poder ser renderizado
@@ -573,8 +594,35 @@ void main() {
 	//Inicializamos GLEW y controlamos errores
 	if (glewInit() == GLEW_OK) {
 
-		
-		
+		//genero spawnpoints
+		SpawnPoint point0,point1,point2,point3,point4;
+		//punto 0
+		point0.position = glm::vec3(1.5f, 1.f, 0.f);
+		point0.rotation = glm::vec3(0.f, 1.f, 0.f);
+		point0.angle = -75.0f;
+		//punto 1
+		point1.position = glm::vec3(-1.5f, 1.f, 0.f);
+		point1.rotation = glm::vec3(0.f, 1.f, 0.f);
+		point1.angle = 75.0f;
+		//punto 2
+		point2.position = glm::vec3(1.f, 1.f, -2.f);
+		point2.rotation = glm::vec3(0.f, 1.f, 0.f);
+		point2.angle = 45.0f;
+		//punto 3
+		point3.position = glm::vec3(0.0f, 1.f, 1.f);
+		point3.rotation = glm::vec3(0.f, 1.f, 0.f);
+		point3.angle = 30.0f;
+		//punto 4
+		point4.position = glm::vec3(-1.f, 1.f, 2.f);
+		point4.rotation = glm::vec3(0.f, 1.f, 0.f);
+		point2.angle = -45.0f;
+
+		spawnPoints.push_back(point0);
+		spawnPoints.push_back(point1);
+		spawnPoints.push_back(point2);
+		spawnPoints.push_back(point3);
+		spawnPoints.push_back(point4);
+
 
 		//Compilar shaders
 		ShaderProgram myFirstProgram;
@@ -661,103 +709,6 @@ void main() {
 		glUseProgram(compiledPrograms[0]);
 
 
-		////////////////////////////////////////////  CUBO  ////////////////////////////////////////////
-
-		//Declarar instancia de GameObject
-
-
-		//Declarar vec2 para definir el offset
-		glm::vec2 offset = glm::vec2(0.f, 0.f);
-
-		//Compilar shaders
-		ShaderProgram CuboProgram;
-		CuboProgram.vertexShader = LoadVertexShader("VertexShaderCube.glsl");
-		CuboProgram.geometryShader = LoadGeometryShader("GeometryShaderCube.glsl");
-		CuboProgram.fragmentShader = LoadFragmentShader("FragmentShaderCube.glsl");
-
-		//Compilar programa
-		compiledPrograms.push_back(CreateProgram(CuboProgram));
-
-		//Definimos color para limpiar el buffer de color
-		glClearColor(0.f, 255.f, 255.f, 1.f);
-
-		GLuint vaoCubo, vboCubo;
-
-		//Definimos cantidad de vao a crear y donde almacenarlos 
-		glGenVertexArrays(1, &vaoCubo);
-
-		//Indico que el VAO activo de la GPU es el que acabo de crear
-		glBindVertexArray(vaoCubo);
-
-		//Definimos cantidad de vbo a crear y donde almacenarlos
-		glGenBuffers(1, &vboCubo);
-
-		//Indico que el VBO activo es el que acabo de crear y que almacenará un array. Todos los VBO que genere se asignaran al último VAO que he hecho glBindVertexArray
-		glBindBuffer(GL_ARRAY_BUFFER, vboCubo);
-
-		//Posición X e Y del punto
-		GLfloat cubo[] = {
-			-0.5f, -0.5f, -0.5f, // Bottom-left
-	 0.5f, -0.5f, -0.5f, // Bottom-right
-	 0.5f,  0.5f, -0.5f, // Top-right
-	 0.5f,  0.5f, -0.5f, // Top-right
-	-0.5f,  0.5f, -0.5f, // Top-left
-	-0.5f, -0.5f, -0.5f, // Bottom-left
-
-	-0.5f, -0.5f,  0.5f, // Bottom-left
-	 0.5f, -0.5f,  0.5f, // Bottom-right
-	 0.5f,  0.5f,  0.5f, // Top-right
-	 0.5f,  0.5f,  0.5f, // Top-right
-	-0.5f,  0.5f,  0.5f, // Top-left
-	-0.5f, -0.5f,  0.5f, // Bottom-left
-
-	-0.5f,  0.5f,  0.5f, // Top-left
-	-0.5f,  0.5f, -0.5f, // Top-right
-	-0.5f, -0.5f, -0.5f, // Bottom-right
-	-0.5f, -0.5f, -0.5f, // Bottom-right
-	-0.5f, -0.5f,  0.5f, // Bottom-left
-	-0.5f,  0.5f,  0.5f, // Top-left
-
-	 0.5f,  0.5f,  0.5f, // Top-left
-	 0.5f,  0.5f, -0.5f, // Top-right
-	 0.5f, -0.5f, -0.5f, // Bottom-right
-	 0.5f, -0.5f, -0.5f, // Bottom-right
-	 0.5f, -0.5f,  0.5f, // Bottom-left
-	 0.5f,  0.5f,  0.5f, // Top-left
-
-	-0.5f, -0.5f, -0.5f, // Bottom-left
-	 0.5f, -0.5f, -0.5f, // Bottom-right
-	 0.5f, -0.5f,  0.5f, // Top-right
-	 0.5f, -0.5f,  0.5f, // Top-right
-	-0.5f, -0.5f,  0.5f, // Top-left
-	-0.5f, -0.5f, -0.5f, // Bottom-left
-
-	-0.5f,  0.5f, -0.5f, // Bottom-left
-	 0.5f,  0.5f, -0.5f, // Bottom-right
-	 0.5f,  0.5f,  0.5f, // Top-right
-	 0.5f,  0.5f,  0.5f, // Top-right
-	-0.5f,  0.5f,  0.5f, // Top-left
-	-0.5f,  0.5f, -0.5f  // Bottom-left
-		};
-
-
-		//Definimos modo de dibujo para cada cara
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-		//Ponemos los valores en el VBO creado
-		glBufferData(GL_ARRAY_BUFFER, sizeof(cubo), cubo, GL_STATIC_DRAW);
-
-		//Indicamos donde almacenar y como esta distribuida la información
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-
-		//Indicamos que la tarjeta gráfica puede usar el atributo 0
-		glEnableVertexAttribArray(0);
-
-		//Desvinculamos VBO
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		//Desvinculamos VAO
-		glBindVertexArray(0);
 
 		ShaderProgram WhiteProgram;
 		WhiteProgram.vertexShader = LoadVertexShader("MyFirstVertexShader.glsl");
@@ -777,6 +728,18 @@ void main() {
 		float lastFrameTime = glfwGetTime();
 		sun.position = glm::vec3(0.0f, 0.0f, 10.0f);
 		moon.position = glm::vec3(0.0f, 0.0f, -10.0f);
+
+		SpawnPoint modelPoint = RandomSpawnpoint(spawnPoints);
+		SpawnPoint modelPoint1 = RandomSpawnpoint(spawnPoints);
+		SpawnPoint modelPoint2 = RandomSpawnpoint(spawnPoints);
+		SpawnPoint modelPoint3 = RandomSpawnpoint(spawnPoints);
+
+		modelPoints.push_back(modelPoint);
+		modelPoints.push_back(modelPoint1);
+		modelPoints.push_back(modelPoint2);
+		modelPoints.push_back(modelPoint3);
+
+
 		//Generamos el game loop
 		while (!glfwWindowShouldClose(window)) {
 
@@ -941,14 +904,14 @@ void main() {
 			// <<<<<<<<<<<<<<<<<<<<<<<<<<TROLL 1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 			
-			glUseProgram(compiledPrograms[2]);
+			glUseProgram(compiledPrograms[1]);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, textureID);
-			glUniform1i(glGetUniformLocation(compiledPrograms[2], "textureSampler"), 0);
+			glUniform1i(glGetUniformLocation(compiledPrograms[1], "textureSampler"), 0);
 
 			//Definir la matriz de traslacion, rotacion y escalado
-			 translationMatrix = glm::translate(glm::mat4(1.f), glm::vec3(1.5f,1.f,0.f));
-			 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(-75.0f), glm::vec3(0.f, 1.f, 0.f));
+			 translationMatrix = glm::translate(glm::mat4(1.f), modelPoints[0].position);
+			 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(modelPoints[0].angle), modelPoints[0].rotation);
 			 scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.5f));
 
 			// Definir la matriz de vista
@@ -960,27 +923,27 @@ void main() {
 			 
 
 			//Asignar valores iniciales al programa
-			glUniform2f(glGetUniformLocation(compiledPrograms[2], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
+			glUniform2f(glGetUniformLocation(compiledPrograms[1], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
 
 
 			// Pasar las matrices
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "translationMatrix"), 1, GL_FALSE, glm::value_ptr(translationMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "rotationMatrix"), 1, GL_FALSE, glm::value_ptr(rotationMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "view"), 1, GL_FALSE, glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "translationMatrix"), 1, GL_FALSE, glm::value_ptr(translationMatrix));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "rotationMatrix"), 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "view"), 1, GL_FALSE, glm::value_ptr(view));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[1], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 			models[0].Render();
 
 
 			// <<<<<<<<<<<<<<<<<<<<<<<<<<TROLL 2>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-			glUseProgram(compiledPrograms[3]);
+			glUseProgram(compiledPrograms[2]);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, textureID);
-			glUniform1i(glGetUniformLocation(compiledPrograms[3], "textureSampler"), 0);
+			glUniform1i(glGetUniformLocation(compiledPrograms[2], "textureSampler"), 0);
 
 			//Definir la matriz de traslacion, rotacion y escalado
-			translationMatrix = glm::translate(glm::mat4(1.f), glm::vec3(-1.5f, 1.f, 0.f));
-			rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(75.0f), glm::vec3(0.f, 1.f, 0.f));
+			translationMatrix = glm::translate(glm::mat4(1.f), modelPoints[1].position);
+			rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(modelPoints[1].angle), modelPoints[1].rotation);
 			scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.5f));
 
 			// Definir la matriz de vista
@@ -990,15 +953,15 @@ void main() {
 			projection = glm::perspective(glm::radians(camara.fFov), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, camara.fNear, camara.fFar);
 
 			//Asignar valores iniciales al programa
-			glUniform2f(glGetUniformLocation(compiledPrograms[3], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
+			glUniform2f(glGetUniformLocation(compiledPrograms[2], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
 
 
 			// Pasar las matrices
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[3], "translationMatrix"), 1, GL_FALSE, glm::value_ptr(translationMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[3], "rotationMatrix"), 1, GL_FALSE, glm::value_ptr(rotationMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[3], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[3], "view"), 1, GL_FALSE, glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[3], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "translationMatrix"), 1, GL_FALSE, glm::value_ptr(translationMatrix));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "rotationMatrix"), 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "view"), 1, GL_FALSE, glm::value_ptr(view));
+			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[2], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 			models[0].Render();
 
 
