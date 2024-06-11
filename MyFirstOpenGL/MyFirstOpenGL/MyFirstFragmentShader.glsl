@@ -8,6 +8,10 @@ uniform vec3 flashLight;
 uniform bool linterna;
 uniform bool sun;
 uniform bool moon;
+uniform vec3 flashLightDirection; // Dirección de la linterna
+
+ float innerConeAngle =5.0f; 
+ float outerConeAngle =10.0f; 
 
 in vec2 uvsFragmentShader;
 in vec3 normalsFragmentShader;
@@ -32,7 +36,7 @@ void main() {
         vec3 lightDirection = normalize(sunLight - primitivePosition.xyz);
         float sourceLightAngle = dot(normalsFragmentShader, lightDirection);
 
-        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (sunColor);
+        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (sunColor) * ambientColor;
 
         
         }
@@ -41,16 +45,29 @@ void main() {
         vec3 lightDirection = normalize(moonLight - primitivePosition.xyz);
         float sourceLightAngle = dot(normalsFragmentShader, lightDirection);
 
-        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (moonColor);
+        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (moonColor) * ambientColor;
         }
       
 
         if(linterna == true)
         {
-        vec3 flashLightDirection = normalize(flashLight - primitivePosition.xyz);
-        float flashLighttAngle = dot(normalsFragmentShader, flashLightDirection);
+        //vec3 flashLightDirection = normalize(flashLight - primitivePosition.xyz);
+        //float flashLighttAngle = dot(normalsFragmentShader, flashLightDirection);
 
-        fragColor += vec4(baseColor.rgb * flashLighttAngle,1.0) * (ambientColor);
+        //fragColor += vec4(baseColor.rgb * flashLighttAngle,1.0) * (ambientColor);
+
+         vec3 lightDir = normalize(flashLight - primitivePosition.xyz);
+        float distance = length(flashLight - primitivePosition.xyz);
+        float theta = dot(lightDir, normalize(flashLightDirection));
+        
+        float epsilon = cos(innerConeAngle) - cos(outerConeAngle);
+        float intensity = clamp((theta - cos(outerConeAngle)) / epsilon, 0.0, 1.0);
+
+        // Atenuación por distancia
+        float attenuation = 5.0 / (distance * distance);
+
+        vec4 lightContribution = vec4(baseColor.rgb * max(dot(normalsFragmentShader, lightDir), 0.0), 1.0) * ambientColor * intensity * attenuation;
+        fragColor += lightContribution;
         }
 
 
