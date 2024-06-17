@@ -10,8 +10,8 @@ uniform bool sun;
 uniform bool moon;
 uniform vec3 flashLightDirection; // Dirección de la linterna
 
- float innerConeAngle =5.0f; 
- float outerConeAngle =10.0f; 
+ float innerConeAngle =1.0f; 
+ float outerConeAngle =5.0f; 
 
 in vec2 uvsFragmentShader;
 in vec3 normalsFragmentShader;
@@ -26,26 +26,33 @@ void main() {
         vec4 baseColor = texture(textureSampler, adjustedTexCoord); 
         vec4 ambientColor = vec4(1.0,1.0,1.0,1.0);
         vec4 sunColor= vec4(0.5,0.5,0.0,1.0);
-        vec4 moonColor= vec4(0.0,0.0,0.5,1.0);
+        vec4 moonColor= vec4(0.0,0.17,0.5,1.0);
 
+         fragColor = vec4(0.0); // Inicializar fragColor
 
         if(sun == true)
         {
-
-        //vec3 sunLight = vec3(0,0,1);
+         float distanceSun = length(sunLight - primitivePosition.xyz);
+        // Atenuación por distancia
+        float attenuationSun = 100.0 / (distanceSun * distanceSun);
         vec3 lightDirection = normalize(sunLight - primitivePosition.xyz);
         float sourceLightAngle = dot(normalsFragmentShader, lightDirection);
 
-        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (sunColor) * ambientColor;
+        fragColor += vec4(baseColor.rgb * sourceLightAngle,1.0) * (sunColor) * ambientColor * attenuationSun;
 
         
         }
         if(moon == true)
         {
+       float distanceMoon = length(moonLight - primitivePosition.xyz);
+        // Atenuación por distancia
+        float attenuationMoon = 100.0 / (distanceMoon * distanceMoon);
+
+
         vec3 lightDirection = normalize(moonLight - primitivePosition.xyz);
         float sourceLightAngle = dot(normalsFragmentShader, lightDirection);
 
-        fragColor += vec4(baseColor.rgb * sourceLightAngle,2.0) * (moonColor) * ambientColor;
+        fragColor += vec4(baseColor.rgb * sourceLightAngle,1.0) * (moonColor) * ambientColor * attenuationMoon;
         }
       
 

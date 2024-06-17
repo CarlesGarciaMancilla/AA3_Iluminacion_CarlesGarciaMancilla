@@ -32,6 +32,7 @@ struct Camera
 	glm::vec3 position = glm::vec3(0.f,2.f,5.f);
 	glm::vec3 direction = position + glm::vec3(0.f,0.f,-10.f);
 	glm::vec3 localVectorUp = glm::vec3(0.f,1.f,0.f);
+	glm::vec3 localVectorFront = glm::vec3(0.f,0.f,-1.f);
 	glm::vec3 initialPosition = glm::vec3(0.f, 2.f, 5.f);
 	glm::vec3 offset = glm::vec3(0.f, 0.f, 0.5f);
 	float dollyZoomSpeed = 0.01f;
@@ -39,7 +40,7 @@ struct Camera
 	float initialFov = 45.f;
 	float fFov = 45.f;
 	float fNear = 0.1f;
-	float fFar = 10.f;
+	float fFar = 1000.f;
 	float aspectRatio;
 	float pitch = 0;
 	float yaw = 0;
@@ -77,18 +78,15 @@ std::vector<Model> models;
 std::vector<SpawnPoint> spawnPoints;
 std::vector<SpawnPoint> modelPoints;
 
-bool isometric = true;
-bool generalPlane = false;
-bool detailPlane = false;
-bool dollyZoom = false;
-bool first = true;
 bool linterna = false;
 bool sunLight = true;
 bool moonLight = false;
 bool noche = false;
+bool firstMouse = true;
+bool keyFPressed = false;
 float lastX = 400.0f;
 float lastY = 300.0f;
-bool firstMouse = true;
+float camaraSpeed = 0.05f;
 
 void Resize_Window(GLFWwindow* window, int iFrameBufferWidth, int iFrameBufferHeight) {
 
@@ -121,7 +119,9 @@ void keyEvents(GLFWwindow* window, int key, int scancode, int action, int mods)
 
 }
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) 
+{
+	//movimiento de camara conel raton
 	if (firstMouse) {
 		lastX = xpos;
 		lastY = ypos;
@@ -150,8 +150,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	direction.x = cos(glm::radians(camara.yaw)) * cos(glm::radians(camara.pitch));
 	direction.y = sin(glm::radians(camara.pitch));
 	direction.z = sin(glm::radians(camara.yaw)) * cos(glm::radians(camara.pitch));
+	//actualizamos la direccion para la linterna
 	camara.direction = camara.position + glm::normalize(direction);
-
+	//actualizamos el front para que el movimiento sea correcto
+	camara.localVectorFront = glm::normalize(direction);
 
 }
 
@@ -163,13 +165,13 @@ void UpdateSunRotation(float deltaTime) {
 	glm::vec3 rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f); // Rotación alrededor del eje Y
 	float rotationAngle = sun.angle + sun.fAngularVelocity * deltaTime; // Calcula el nuevo ángulo
 
-	// Paso 1: Traslada el Sol al origen del sistema de coordenadas
+	// Traslada el Sol al origen del sistema de coordenadas
 	glm::mat4 translateToOrigin = GenerateTranslationMatrix(-rotationCenter);
 
-	// Paso 2: Aplica la rotación
+	// Aplica la rotación
 	glm::mat4 rotation = GenerateRotationMatrix(rotationAxis, rotationAngle);
 
-	// Paso 3: Devuelve el Sol a su posición original
+	// Devuelve el Sol a su posición original
 	glm::mat4 translateBack = GenerateTranslationMatrix(rotationCenter);
 
 	// Combina las transformaciones
@@ -184,30 +186,21 @@ void UpdateSunRotation(float deltaTime) {
 }
 
 void UpdateMoonRotation(float deltaTime) {
-	// Define el punto alrededor del cual rotará el Sol (por ejemplo, el centro del sistema de coordenadas)
+	// Igual que el sol
 	glm::vec3 rotationCenter = glm::vec3(0.f, 1.f, -1.f);
+	glm::vec3 rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f); 
+	float rotationAngle = moon.angle + moon.fAngularVelocity * deltaTime; 
 
-	// Define el eje y el ángulo de rotación
-	glm::vec3 rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f); // Rotación alrededor del eje Y
-	float rotationAngle = moon.angle + moon.fAngularVelocity * deltaTime; // Calcula el nuevo ángulo
-
-	// Paso 1: Traslada el Sol al origen del sistema de coordenadas
 	glm::mat4 translateToOrigin = GenerateTranslationMatrix(-rotationCenter);
 
-	// Paso 2: Aplica la rotación
 	glm::mat4 rotation = GenerateRotationMatrix(rotationAxis, rotationAngle);
 
-	// Paso 3: Devuelve el Sol a su posición original
 	glm::mat4 translateBack = GenerateTranslationMatrix(rotationCenter);
 
-	// Combina las transformaciones
 	glm::mat4 transform = translateBack * rotation * translateToOrigin;
 
-	// Aplica la transformación a la posición del Sol
 	moon.position = glm::vec3(transform * glm::vec4(moon.position, 1.0f));
 
-
-	// Actualiza el ángulo del Sol
 	moon.angle = rotationAngle;
 }
 
@@ -215,10 +208,9 @@ SpawnPoint RandomSpawnpoint(std::vector<SpawnPoint> spawnPoints)
 {
 	
 
-	// Generate a random index within the bounds of the vector
+	// Generamos un indice aleatorio
 	int randomIndex = std::rand() % spawnPoints.size();
 
-	// Return the spawn point at the random index
 	return spawnPoints[randomIndex];
 
 
@@ -584,15 +576,11 @@ void main() {
 	//Indicamos lado del culling
 	glEnable(GL_DEPTH_TEST);
 
-	
+	glEnable(GL_POLYGON_OFFSET_FILL);
+
 
 	//Leer textura
 	int width, height, nrChannels;
-
-
-
-
-
 
 	//Inicializamos GLEW y controlamos errores
 	if (glewInit() == GLEW_OK) {
@@ -619,7 +607,7 @@ void main() {
 		point4.position = glm::vec3(-1.f, 1.f, 2.f);
 		point4.rotation = glm::vec3(0.f, 1.f, 0.f);
 		point2.angle = -45.0f;
-
+		//los cargo en el vector
 		spawnPoints.push_back(point0);
 		spawnPoints.push_back(point1);
 		spawnPoints.push_back(point2);
@@ -628,10 +616,10 @@ void main() {
 
 
 		//Compilar shaders
-		ShaderProgram illuminationProgram;
-		illuminationProgram.vertexShader = LoadVertexShader("MyFirstVertexShader.glsl");
-		illuminationProgram.geometryShader = LoadGeometryShader("MyFirstGeometryShader.glsl");
-		illuminationProgram.fragmentShader = LoadFragmentShader("MyFirstFragmentShader.glsl");
+		ShaderProgram lightProgram;
+		lightProgram.vertexShader = LoadVertexShader("MyFirstVertexShader.glsl");
+		lightProgram.geometryShader = LoadGeometryShader("MyFirstGeometryShader.glsl");
+		lightProgram.fragmentShader = LoadFragmentShader("MyFirstFragmentShader.glsl");
 
 
 		unsigned char* textureInfo = stbi_load("Assets/Textures/troll.png", &width, &height, &nrChannels, 0);
@@ -639,7 +627,7 @@ void main() {
 		models.push_back(LoadOBJModel("Assets/Models/troll.obj"));
 
 		//Compìlar programa
-		compiledPrograms.push_back(CreateProgram(illuminationProgram));
+		compiledPrograms.push_back(CreateProgram(lightProgram));
 
 		//Definimos canal de textura activo
 		glActiveTexture(GL_TEXTURE0);
@@ -754,29 +742,9 @@ void main() {
 		glUseProgram(compiledPrograms[0]);
 
 
-
-		ShaderProgram WhiteProgram;
-		WhiteProgram.vertexShader = LoadVertexShader("MyFirstVertexShader.glsl");
-		WhiteProgram.geometryShader = LoadGeometryShader("MyFirstGeometryShader.glsl");
-		WhiteProgram.fragmentShader = LoadFragmentShader("FragmentShaderBlanco.glsl");
-
-		//Compìlar programa
-		compiledPrograms.push_back(CreateProgram(WhiteProgram));
-
-		ShaderProgram ColorProgram;
-		ColorProgram.vertexShader = LoadVertexShader("MyFirstVertexShader.glsl");
-		ColorProgram.geometryShader = LoadGeometryShader("MyFirstGeometryShader.glsl");
-		ColorProgram.fragmentShader = LoadFragmentShader("FragmentShaderColor.glsl");
-
-		//Compìlar programa
-		compiledPrograms.push_back(CreateProgram(ColorProgram));
-
-
-
-		float lastFrameTime = glfwGetTime();
 		sun.position = glm::vec3(0.0f, 0.0f, 10.0f);
 		moon.position = glm::vec3(0.0f, 0.0f, -10.0f);
-
+		//genero e inicializo aleatoriamente las posiciones de los modelos con los puntos pre generados anteriormente
 		SpawnPoint modelPoint = RandomSpawnpoint(spawnPoints);
 		SpawnPoint modelPoint1 = RandomSpawnpoint(spawnPoints);
 		SpawnPoint modelPoint2 = RandomSpawnpoint(spawnPoints);
@@ -799,6 +767,8 @@ void main() {
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 			glfwSetCursorPosCallback(window, mouse_callback);
 
+
+			float lastFrameTime = glfwGetTime();
 			float currentFrameTime = glfwGetTime();
 			float deltaTime = currentFrameTime - lastFrameTime;
 			UpdateSunRotation(deltaTime);
@@ -824,45 +794,46 @@ void main() {
 			{
 				moonLight = true;
 			}
+			int state = glfwGetKey(window, GLFW_KEY_F);
 
-			if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+			// Comprueba si la tecla F está presionada en este ciclo y no lo estaba en el ciclo anterior
+			if (state == GLFW_PRESS && !keyFPressed)
 			{
-				if (linterna) 
-				{
-					linterna = false;
-					
-				}
-				else 
-				{
-					linterna = true;
-				}
+				// Cambia el estado de la linterna
+				linterna = !linterna;
+
+				// Actualiza el estado de la tecla F a presionada
+				keyFPressed = true;
+			}
+
+			// Comprueba si la tecla F no está presionada para actualizar el estado de la tecla
+			if (state == GLFW_RELEASE)
+			{
+				// Actualiza el estado de la tecla F a no presionada
+				keyFPressed = false;
 			}
 
 			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) 
 			{
-				camara.position.z -= 0.05f;
-				camara.direction.z -= 0.05f;
+				camara.position += camaraSpeed * camara.localVectorFront;
 			}
 			if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
 			{
-				camara.position.z += 0.05f;
-				camara.direction.z += 0.05f;
+				camara.position -= camaraSpeed * camara.localVectorFront;
 			}
 			if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 			{
-				camara.position.x += 0.05f;
-				camara.direction.x += 0.05f;
+				camara.position += glm::normalize(glm::cross(camara.localVectorFront, camara.localVectorUp)) * camaraSpeed;
 			}
 			if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
 			{
-				camara.position.x -= 0.05f;
-				camara.direction.x -= 0.05f;
+				camara.position -= glm::normalize(glm::cross(camara.localVectorFront, camara.localVectorUp)) * camaraSpeed;
 			}
-	
-			
+
 			//Limpiamos los buffers
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-			glUniform2f(glGetUniformLocation(compiledPrograms[1], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
+
+			glUniform2f(glGetUniformLocation(compiledPrograms[0], "windowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
 			glUseProgram(compiledPrograms[0]);
 			// <<<<<<<<<<<<<<<<<<<<<<<<<<TROLL ORIGINAL>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 			glActiveTexture(GL_TEXTURE0);
@@ -875,7 +846,8 @@ void main() {
 			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.5f));
 
 			// Definir la matriz de vista
-			glm::mat4 view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
+			glm::mat4 view = glm::lookAt(camara.position, camara.position + camara.localVectorFront, camara.localVectorUp);
+			//glm::mat4 view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
 			view = view * GenerateTranslationMatrix(camara.offset);
 
 			// Definir la matriz proyeccion
@@ -898,9 +870,9 @@ void main() {
 			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLight"), 1, glm::value_ptr(camara.position));
 			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLightDirection"), 1, glm::value_ptr(camara.direction));
 			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "moonLight"), 1, glm::value_ptr(moon.position));
-
+			glPolygonOffset(1.0f, 1.0f);
 			models[0].Render();
-
+			glDisable(GL_POLYGON_OFFSET_FILL);
 
 			// <<<<<<<<<<<<<<<<<<<<<<<<<<ESTRELLA>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -914,9 +886,6 @@ void main() {
 			 translationMatrix = glm::translate(glm::mat4(1.f), modelPoints[0].position);
 			 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(modelPoints[0].angle), modelPoints[0].rotation);
 			 scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
-
-			// Definir la matriz de vista
-			 view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
 
 			 // Definir la matriz proyeccion
 			 projection = glm::perspective(glm::radians(camara.fFov), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, camara.fNear, camara.fFar);
@@ -940,6 +909,7 @@ void main() {
 			 glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLight"), 1, glm::value_ptr(camara.position));
 			 glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLightDirection"), 1, glm::value_ptr(camara.direction));
 			 glUniform3fv(glGetUniformLocation(compiledPrograms[0], "moonLight"), 1, glm::value_ptr(moon.position));
+			 glPolygonOffset(1.0f, 1.0f);
 			 models[2].Render();
 
 
@@ -954,9 +924,6 @@ void main() {
 			 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(modelPoints[1].angle), modelPoints[1].rotation);
 			 scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
 
-			// Definir la matriz de vista
-			view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
-
 			// Definir la matriz proyeccion
 			projection = glm::perspective(glm::radians(camara.fFov), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, camara.fNear, camara.fFar);
 
@@ -970,6 +937,14 @@ void main() {
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "scaleMatrix"), 1, GL_FALSE, glm::value_ptr(scaleMatrix));
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "view"), 1, GL_FALSE, glm::value_ptr(view));
 			glUniformMatrix4fv(glGetUniformLocation(compiledPrograms[0], "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+			glUniform1i(glGetUniformLocation(compiledPrograms[0], "linterna"), linterna);
+			glUniform1i(glGetUniformLocation(compiledPrograms[0], "sun"), sunLight);
+			glUniform1i(glGetUniformLocation(compiledPrograms[0], "moon"), moonLight);
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "sunLight"), 1, glm::value_ptr(sun.position));
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLight"), 1, glm::value_ptr(camara.position));
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLightDirection"), 1, glm::value_ptr(camara.direction));
+			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "moonLight"), 1, glm::value_ptr(moon.position));
+			glPolygonOffset(1.0f, 1.0f);
 			models[2].Render();
 
 
@@ -984,9 +959,6 @@ void main() {
 			glm::mat4 translationMatrix2 = glm::translate(glm::mat4(1.f), glm::vec3(-1.8f, 0.80f, -0.8f));
 			glm::mat4 rotationMatrix2 = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.f, 1.f, 0.f));
 			glm::mat4 scaleMatrix2 = glm::scale(glm::mat4(1.f), glm::vec3(6.f, 0.2f, 6.f));
-
-			// Definir la matriz de vista
-			view = glm::lookAt(camara.position, camara.direction, camara.localVectorUp);
 
 			// Definir la matriz proyeccion
 			projection = glm::perspective(glm::radians(camara.fFov), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, camara.fNear, camara.fFar);
@@ -1008,6 +980,7 @@ void main() {
 			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLight"), 1, glm::value_ptr(camara.position));
 			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "flashLightDirection"), 1, glm::value_ptr(camara.direction));
 			glUniform3fv(glGetUniformLocation(compiledPrograms[0], "moonLight"), 1, glm::value_ptr(moon.position));
+			glPolygonOffset(1.0f, 1.0f);
 			models[1].Render();
 
 
